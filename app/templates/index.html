@@ -1,87 +1,670 @@
 <!doctype html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>CPU/RAM Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 28px; }
-    .row { display:flex; gap: 18px; align-items: end; flex-wrap: wrap; }
-    label { display:block; font-size: 13px; opacity:.8; margin-bottom: 6px; }
-    input { padding: 8px; width: 220px; }
-    button { padding: 10px 14px; cursor: pointer; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-top: 14px; }
-    pre { background:#f6f6f6; padding: 12px; border-radius: 10px; overflow:auto; }
-    .pill { display:inline-block; padding:6px 10px; border:1px solid #ddd; border-radius: 999px; margin-right: 8px; }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    @media(max-width: 860px){ .grid{ grid-template-columns:1fr; } }
+    /* ── Reset & Base ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --rh-red:        #EE0000;
+      --rh-red-dark:   #A30000;
+      --rh-black:      #151515;
+      --rh-gray-900:   #212427;
+      --rh-gray-800:   #2D2D2D;
+      --rh-gray-600:   #4D4D4D;
+      --rh-gray-400:   #8A8D90;
+      --rh-gray-200:   #D2D2D2;
+      --rh-gray-100:   #F0F0F0;
+      --rh-white:      #FFFFFF;
+      --rh-blue:       #06C;
+      --rh-green:      #3E8635;
+      --rh-yellow:     #F0AB00;
+      --rh-cyan:       #009596;
+      --shadow-sm:     0 1px 2px rgba(0,0,0,.08);
+      --shadow-md:     0 4px 12px rgba(0,0,0,.1);
+      --shadow-lg:     0 8px 24px rgba(0,0,0,.12);
+      --radius:        6px;
+      --radius-lg:     10px;
+    }
+
+    body {
+      font-family: 'Red Hat Text', 'Segoe UI', system-ui, sans-serif;
+      background: var(--rh-gray-100);
+      color: var(--rh-gray-900);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Red Hat Display', 'Red Hat Text', system-ui, sans-serif;
+    }
+
+    /* ── Header / Navbar ───────────────────────────────── */
+    .navbar {
+      background: var(--rh-black);
+      color: var(--rh-white);
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      height: 60px;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: var(--rh-white);
+    }
+
+    .navbar-logo {
+      width: 36px;
+      height: 36px;
+      background: var(--rh-red);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: .5px;
+      font-family: 'Red Hat Display', sans-serif;
+    }
+
+    .navbar-title {
+      font-family: 'Red Hat Display', sans-serif;
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: -.2px;
+    }
+
+    .navbar-badge {
+      margin-left: 12px;
+      background: var(--rh-gray-800);
+      border: 1px solid var(--rh-gray-600);
+      color: var(--rh-gray-400);
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .navbar-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--rh-gray-400);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--rh-gray-600);
+      transition: background .3s;
+    }
+
+    .status-dot.connected { background: var(--rh-green); }
+    .status-dot.running   { background: var(--rh-green); animation: pulse 1.5s infinite; }
+    .status-dot.stopped   { background: var(--rh-gray-600); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    /* ── Layout ────────────────────────────────────────── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 32px 48px;
+    }
+
+    .page-description {
+      color: var(--rh-gray-600);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    /* ── Cards ─────────────────────────────────────────── */
+    .card {
+      background: var(--rh-white);
+      border: 1px solid var(--rh-gray-200);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: box-shadow .2s;
+    }
+
+    .card:hover { box-shadow: var(--shadow-md); }
+
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--rh-gray-200);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--rh-gray-900);
+    }
+
+    .card-header .icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--rh-gray-600);
+    }
+
+    .card-body { padding: 20px; }
+
+    /* ── Controls Card ─────────────────────────────────── */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    @media (max-width: 860px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--rh-gray-600);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: 'Red Hat Text', sans-serif;
+      border: 1px solid var(--rh-gray-200);
+      border-radius: var(--radius);
+      background: var(--rh-white);
+      color: var(--rh-gray-900);
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+
+    .form-group input:focus {
+      border-color: var(--rh-blue);
+      box-shadow: 0 0 0 3px rgba(0,102,204,.15);
+    }
+
+    .form-group .hint {
+      font-size: 11px;
+      color: var(--rh-gray-400);
+      margin-top: 4px;
+    }
+
+    /* ── Buttons ───────────────────────────────────────── */
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Red Hat Text', sans-serif;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background .15s, box-shadow .15s, transform .1s;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:active { transform: scale(.97); }
+
+    .btn-primary {
+      background: var(--rh-red);
+      color: var(--rh-white);
+    }
+    .btn-primary:hover { background: var(--rh-red-dark); box-shadow: var(--shadow-sm); }
+
+    .btn-danger {
+      background: var(--rh-gray-900);
+      color: var(--rh-white);
+    }
+    .btn-danger:hover { background: var(--rh-black); box-shadow: var(--shadow-sm); }
+
+    .btn-secondary {
+      background: var(--rh-white);
+      color: var(--rh-gray-900);
+      border: 1px solid var(--rh-gray-200);
+    }
+    .btn-secondary:hover { background: var(--rh-gray-100); }
+    .btn-secondary.active {
+      border-color: var(--rh-green);
+      color: var(--rh-green);
+    }
+
+    /* ── Dashboard Grid ────────────────────────────────── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 860px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Metrics ───────────────────────────────────────── */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      background: var(--rh-gray-100);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      text-align: center;
+      transition: background .2s;
+    }
+
+    .metric:hover { background: #E8E8E8; }
+
+    .metric-value {
+      font-family: 'Red Hat Display', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--rh-gray-900);
+      line-height: 1.2;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--rh-gray-400);
+      margin-top: 4px;
+    }
+
+    .metric-value.status-running { color: var(--rh-green); }
+    .metric-value.status-stopped { color: var(--rh-gray-600); }
+
+    /* ── Progress Bar ──────────────────────────────────── */
+    .progress-container {
+      margin-top: 16px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--rh-gray-600);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--rh-gray-200);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--rh-red);
+      border-radius: 3px;
+      transition: width .8s ease;
+      width: 0%;
+    }
+
+    .progress-fill.complete {
+      background: var(--rh-green);
+    }
+
+    /* ── Note ──────────────────────────────────────────── */
+    .note-bar {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: #FFF5E6;
+      border-left: 3px solid var(--rh-yellow);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 13px;
+      color: var(--rh-gray-800);
+      display: none;
+    }
+
+    .note-bar.visible { display: block; }
+
+    /* ── Code / JSON ───────────────────────────────────── */
+    pre {
+      background: var(--rh-gray-900);
+      color: #D4D4D4;
+      padding: 16px;
+      border-radius: var(--radius);
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      overflow: auto;
+      max-height: 260px;
+    }
+
+    pre .json-key { color: #9CDCFE; }
+    pre .json-str { color: #CE9178; }
+    pre .json-num { color: #B5CEA8; }
+    pre .json-bool { color: #569CD6; }
+    pre .json-null { color: #569CD6; }
+
+    /* ── Console ───────────────────────────────────────── */
+    .console-card { margin-top: 16px; }
+
+    .console-pre {
+      max-height: 180px;
+      font-size: 12px;
+    }
+
+    .console-pre .ts { color: var(--rh-gray-400); }
+    .console-pre .msg { color: #D4D4D4; }
+
+    /* ── Footer ────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      padding: 24px 0 12px;
+      font-size: 12px;
+      color: var(--rh-gray-400);
+    }
+
+    .footer a {
+      color: var(--rh-blue);
+      text-decoration: none;
+    }
+    .footer a:hover { text-decoration: underline; }
+
+    /* ── Scrollbar ─────────────────────────────────────── */
+    pre::-webkit-scrollbar { width: 6px; height: 6px; }
+    pre::-webkit-scrollbar-track { background: transparent; }
+    pre::-webkit-scrollbar-thumb { background: var(--rh-gray-600); border-radius: 3px; }
   </style>
 </head>
 <body>
-  <h1>CPU/RAM Simulator</h1>
-  <p>Start/Stop + streaming de status via WebSocket. O limite real é imposto pelos <b>limits</b> do Pod.</p>
 
-  <div class="card">
-    <div class="row">
-      <div>
-        <label>Memória alvo (MiB)</label>
-        <input id="mem" type="number" value="1900" min="64" max="3000"/>
-      </div>
-      <div>
-        <label>CPU workers (processos)</label>
-        <input id="workers" type="number" value="2" min="1" max="32"/>
-      </div>
-      <div>
-        <label>Duração (segundos)</label>
-        <input id="seconds" type="number" value="120" min="5" max="3600"/>
-      </div>
-
-      <div>
-        <button onclick="start()">Start</button>
-        <button onclick="stop()">Stop</button>
-        <button onclick="toggleWs()">Toggle WS</button>
-      </div>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      <div class="navbar-logo">RH</div>
+      <span class="navbar-title">CPU / RAM Simulator</span>
+    </a>
+    <span class="navbar-badge">Demo Tool</span>
+    <div class="navbar-status">
+      <div class="status-dot" id="wsDot"></div>
+      <span id="wsLabel">Connecting...</span>
     </div>
-  </div>
+  </nav>
 
-  <div class="grid">
+  <div class="container">
+
+    <p class="page-description">
+      Simule carga de CPU e memoria em um Pod Kubernetes/OpenShift. Ajuste os parametros, clique em <strong>Start</strong>
+      e acompanhe o consumo em tempo real via WebSocket. Os limites reais sao impostos pelos <strong>resource limits</strong> do Pod.
+    </p>
+
+    <!-- Controls -->
     <div class="card">
-      <h3>Resumo</h3>
-      <div id="summary"></div>
+      <div class="card-header">
+        <span class="icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        </span>
+        <h3>Configuracao</h3>
+      </div>
+      <div class="card-body">
+        <div class="controls-grid">
+          <div class="form-group">
+            <label>Memoria alvo (MiB)</label>
+            <input id="mem" type="number" value="1900" min="64" max="3000"/>
+            <div class="hint">Min: 64 &middot; Max: 3000</div>
+          </div>
+          <div class="form-group">
+            <label>CPU Workers</label>
+            <input id="workers" type="number" value="2" min="1" max="32"/>
+            <div class="hint">Processos de CPU burn</div>
+          </div>
+          <div class="form-group">
+            <label>Duracao (segundos)</label>
+            <input id="seconds" type="number" value="120" min="5" max="3600"/>
+            <div class="hint">Min: 5s &middot; Max: 3600s</div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="start()">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+              Start
+            </button>
+            <button class="btn btn-danger" onclick="stop()">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+              Stop
+            </button>
+            <button class="btn btn-secondary" id="btnWs" onclick="toggleWs()">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4.93 4.93a10 10 0 0114.14 0M7.76 7.76a6 6 0 018.48 0M10.59 10.59a2 2 0 012.83 0M12 14v.01"/></svg>
+              WS
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <h3>Live status (JSON)</h3>
-      <pre id="out">Conectando...</pre>
-    </div>
-  </div>
 
-  <div class="card">
-    <h3>Console</h3>
-    <pre id="log"></pre>
+    <!-- Dashboard -->
+    <div class="dashboard-grid">
+
+      <!-- Summary Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </span>
+          <h3>Metricas</h3>
+        </div>
+        <div class="card-body">
+          <div class="metrics-row" id="metrics">
+            <div class="metric">
+              <div class="metric-value status-stopped" id="m-status">STOPPED</div>
+              <div class="metric-label">Status</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="m-remaining">-</div>
+              <div class="metric-label">Remaining</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="m-mem-target">0</div>
+              <div class="metric-label">Mem Target</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="m-mem-alloc">0</div>
+              <div class="metric-label">Mem Alloc</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="m-workers">0</div>
+              <div class="metric-label">Workers</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="m-ticks">0</div>
+              <div class="metric-label">Ticks</div>
+            </div>
+          </div>
+
+          <div class="progress-container" id="progressContainer" style="display:none">
+            <div class="progress-header">
+              <span>Progresso</span>
+              <span id="progressPct">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+          </div>
+
+          <div class="note-bar" id="noteBar"></div>
+        </div>
+      </div>
+
+      <!-- Live JSON Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </span>
+          <h3>Live Status</h3>
+        </div>
+        <div class="card-body">
+          <pre id="out">Aguardando conexao WebSocket...</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Console -->
+    <div class="card console-card">
+      <div class="card-header">
+        <span class="icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </span>
+        <h3>Console</h3>
+      </div>
+      <div class="card-body">
+        <pre id="log" class="console-pre"></pre>
+      </div>
+    </div>
+
+    <div class="footer">
+      CPU/RAM Simulator &middot; Built for <a href="https://www.redhat.com/en/technologies/cloud-computing/openshift" target="_blank">Red Hat OpenShift</a>
+    </div>
   </div>
 
 <script>
 let ws = null;
 let wsEnabled = true;
+let totalSeconds = 120;
 
 function log(msg){
   const el = document.getElementById('log');
-  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent;
+  const ts = new Date().toLocaleTimeString();
+  el.innerHTML = `<span class="ts">[${ts}]</span> <span class="msg">${escapeHtml(msg)}</span>\n` + el.innerHTML;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function syntaxHighlight(json){
+  json = json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function(match){
+      let cls = 'json-num';
+      if(/^"/.test(match)){
+        cls = /:$/.test(match) ? 'json-key' : 'json-str';
+      } else if(/true|false/.test(match)){
+        cls = 'json-bool';
+      } else if(/null/.test(match)){
+        cls = 'json-null';
+      }
+      return '<span class="'+cls+'">'+match+'</span>';
+    }
+  );
+}
+
+function updateWsIndicator(connected){
+  const dot = document.getElementById('wsDot');
+  const label = document.getElementById('wsLabel');
+  if(connected){
+    dot.className = 'status-dot connected';
+    label.textContent = 'WS Connected';
+  } else {
+    dot.className = 'status-dot';
+    label.textContent = 'WS Disconnected';
+  }
 }
 
 function renderSummary(s){
-  const running = s.running ? "RUNNING" : "STOPPED";
-  const rem = (s.remaining_seconds === null || s.remaining_seconds === undefined) ? "-" : s.remaining_seconds + "s";
-  const note = s.note || "-";
-  const html = `
-    <span class="pill"><b>${running}</b></span>
-    <span class="pill">remaining: <b>${rem}</b></span>
-    <span class="pill">mem alvo: <b>${s.mem_mib} MiB</b></span>
-    <span class="pill">mem aloc: <b>${s.mem_blocks_mib} MiB</b></span>
-    <span class="pill">workers: <b>${s.cpu_workers}</b></span>
-    <span class="pill">ticks: <b>${s.ticks}</b></span>
-    <div style="margin-top:10px; opacity:.85">note: ${note}</div>
-  `;
-  document.getElementById('summary').innerHTML = html;
+  // Status
+  const statusEl = document.getElementById('m-status');
+  if(s.running){
+    statusEl.textContent = 'RUNNING';
+    statusEl.className = 'metric-value status-running';
+    document.getElementById('wsDot').className = 'status-dot running';
+  } else {
+    statusEl.textContent = 'STOPPED';
+    statusEl.className = 'metric-value status-stopped';
+    if(wsEnabled && ws && ws.readyState === WebSocket.OPEN){
+      document.getElementById('wsDot').className = 'status-dot connected';
+    }
+  }
+
+  // Remaining
+  const rem = (s.remaining_seconds === null || s.remaining_seconds === undefined) ? '-' : s.remaining_seconds + 's';
+  document.getElementById('m-remaining').textContent = rem;
+
+  // Metrics
+  document.getElementById('m-mem-target').textContent = s.mem_mib + ' MiB';
+  document.getElementById('m-mem-alloc').textContent = s.mem_blocks_mib + ' MiB';
+  document.getElementById('m-workers').textContent = s.cpu_workers;
+  document.getElementById('m-ticks').textContent = s.ticks;
+
+  // Progress
+  const pContainer = document.getElementById('progressContainer');
+  const pFill = document.getElementById('progressFill');
+  const pPct = document.getElementById('progressPct');
+
+  if(s.running && s.remaining_seconds !== null && s.remaining_seconds !== undefined){
+    pContainer.style.display = 'block';
+    const elapsed = totalSeconds - s.remaining_seconds;
+    const pct = Math.min(100, Math.round((elapsed / totalSeconds) * 100));
+    pFill.style.width = pct + '%';
+    pFill.className = 'progress-fill';
+    pPct.textContent = pct + '%';
+  } else if(!s.running && pContainer.style.display !== 'none'){
+    pFill.style.width = '100%';
+    pFill.className = 'progress-fill complete';
+    pPct.textContent = '100%';
+    setTimeout(() => { pContainer.style.display = 'none'; }, 2000);
+  }
+
+  // Note
+  const noteBar = document.getElementById('noteBar');
+  if(s.note && s.note.length > 0){
+    noteBar.textContent = s.note;
+    noteBar.className = 'note-bar visible';
+  } else {
+    noteBar.className = 'note-bar';
+  }
 }
 
 function connectWs(){
@@ -89,15 +672,15 @@ function connectWs(){
 
   const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws`);
-  ws.onopen = () => log("WS conectado");
-  ws.onclose = () => log("WS desconectado");
-  ws.onerror = () => log("WS erro");
+  ws.onopen = () => { log("WebSocket conectado"); updateWsIndicator(true); };
+  ws.onclose = () => { log("WebSocket desconectado"); updateWsIndicator(false); };
+  ws.onerror = () => { log("WebSocket erro"); updateWsIndicator(false); };
   ws.onmessage = (ev) => {
-    try{
+    try {
       const s = JSON.parse(ev.data);
-      document.getElementById('out').textContent = JSON.stringify(s, null, 2);
+      document.getElementById('out').innerHTML = syntaxHighlight(JSON.stringify(s, null, 2));
       renderSummary(s);
-    }catch(e){
+    } catch(e) {
       log("Falha parse WS: " + e);
     }
   };
@@ -108,6 +691,7 @@ function disconnectWs(){
     ws.close();
     ws = null;
   }
+  updateWsIndicator(false);
 }
 
 async function start(){
@@ -116,6 +700,7 @@ async function start(){
     cpu_workers: parseInt(document.getElementById('workers').value, 10),
     seconds: parseInt(document.getElementById('seconds').value, 10)
   };
+  totalSeconds = body.seconds;
   const r = await fetch('/api/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   log("Start: " + await r.text());
 }
@@ -127,14 +712,19 @@ async function stop(){
 
 function toggleWs(){
   wsEnabled = !wsEnabled;
+  const btn = document.getElementById('btnWs');
   log("WS enabled = " + wsEnabled);
   if(wsEnabled){
+    btn.classList.add('active');
     connectWs();
-  }else{
+  } else {
+    btn.classList.remove('active');
     disconnectWs();
   }
 }
 
+// Init
+document.getElementById('btnWs').classList.add('active');
 connectWs();
 </script>
 </body>
