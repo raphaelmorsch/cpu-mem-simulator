@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: cpu-mem-sim-build
+spec:
+  params:
+    - name: GIT_URL
+      type: string
+    - name: GIT_REVISION
+      type: string
+      default: main
+    - name: IMAGE
+      type: string
+  workspaces:
+    - name: shared-ws
+  tasks:
+    - name: clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.GIT_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: shared-ws
+
+    - name: show
+      runAfter: [clone]
+      taskRef:
+        name: show-context
+      workspaces:
+        - name: source
+          workspace: shared-ws
+
+    - name: build-and-push
+      runAfter: [show]
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+        - name: DOCKERFILE
+          value: Containerfile
+        - name: CONTEXT
+          value: .
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: shared-ws

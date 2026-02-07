@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpu-mem-sim
+spec:
+  selector:
+    app: cpu-mem-sim
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

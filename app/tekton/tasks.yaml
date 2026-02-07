@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: show-context
+spec:
+  steps:
+    - name: info
+      image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+      script: |
+        echo "Workspace:"
+        ls -la $(workspaces.source.path)
+  workspaces:
+    - name: source
+
+--adicionar task para atualizar a tag da imagem no gitops
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: update-gitops-tag
+spec:
+  params:
+    - name: OVERLAY_PATH
+      type: string
+      default: gitops/overlays/dev
+    - name: IMAGE_NAME
+      type: string
+    - name: NEW_TAG
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: update-and-push
+      image: registry.access.redhat.com/ubi9/git:latest
+      env:
+        - name: GIT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: git-pat
+              key: username
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-pat
+              key: token
+      script: |
+        set -euo pipefail
+        cd $(workspaces.source.path)
+
+        echo "Overlay: $(params.OVERLAY_PATH)"
+        echo "New tag: $(params.NEW_TAG)"
+        echo "Image: $(params.IMAGE_NAME)"
+
+        # configura git identity
+        git config user.email "tekton@local"
+        git config user.name "tekton-bot"
+
+        # descobre URL do remoto e injeta cred (https)
+        REMOTE_URL="$(git remote get-url origin)"
+        echo "Remote: $REMOTE_URL"
+
+        if echo "$REMOTE_URL" | grep -q "^https://"; then
+          # https://host/org/repo.git -> https://user:token@host/org/repo.git
+          AUTH_URL="$(echo "$REMOTE_URL" | sed "s#^https://#https://${GIT_USERNAME}:${GIT_TOKEN}@#")"
+          git remote set-url origin "$AUTH_URL"
+        else
+          echo "Remote não é https. Para ssh, você precisaria configurar chave. Abortando."
+          exit 1
+        fi
+
+        KFILE="$(params.OVERLAY_PATH)/kustomization.yaml"
+        if [ ! -f "$KFILE" ]; then
+          echo "Não achei $KFILE"
+          exit 1
+        fi
+
+        # Atualiza newTag apenas para o bloco da imagem
+        python3 - << 'PY'
+import re, sys
+kfile = sys.argv[1]
+image = sys.argv[2]
+new_tag = sys.argv[3]
+
+txt = open(kfile, "r", encoding="utf-8").read()
+
+# procura bloco: - name: <image> ... newTag: <...>
+pattern = r"(-\s+name:\s*" + re.escape(image) + r"\s*\n(?:.*\n)*?\s+newTag:\s*)(\S+)"
+m = re.search(pattern, txt)
+if not m:
+    raise SystemExit(f"Não encontrei bloco de image '{image}' com newTag em {kfile}")
+
+txt2 = re.sub(pattern, r"\g<1>"+new_tag, txt, count=1)
+open(kfile, "w", encoding="utf-8").write(txt2)
+print("OK: atualizado newTag")
+PY \
+          "$KFILE" "$(params.IMAGE_NAME)" "$(params.NEW_TAG)"
+
+        git add "$KFILE"
+        git commit -m "gitops: update $(params.IMAGE_NAME) tag to $(params.NEW_TAG)" || echo "Nada para commitar"
+        git push origin HEAD:$(git rev-parse --abbrev-ref HEAD)

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-mem-sim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cpu-mem-sim
+  template:
+    metadata:
+      labels:
+        app: cpu-mem-sim
+    spec:
+      containers:
+        - name: app
+          image: quay.io/ramoreir/cpu-mem-sim:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "1200m"
+              memory: "2Gi"
+            limits:
+              cpu: "1200m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20

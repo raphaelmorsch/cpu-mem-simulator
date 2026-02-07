@@ -1,0 +1,19 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: cpu-mem-sim-build-
+spec:
+  pipelineRef:
+    name: cpu-mem-sim-build
+  params:
+    - name: GIT_URL
+      value: https://github.com/SEUORG/cpu-mem-sim.git
+    - name: GIT_REVISION
+      value: main
+    - name: IMAGE
+      value: quay.io/SEUORG/cpu-mem-sim:latest
+  workspaces:
+    - name: shared-ws
+      persistentVolumeClaim:
+        claimName: cpu-mem-sim-ws
+  serviceAccountName: pipeline

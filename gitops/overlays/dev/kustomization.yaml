@@ -1,0 +1,9 @@
+namespace: cpu-mem-sim
+resources:
+  - namespace.yaml
+  - ../../base
+
+images:
+  - name: quay.io/ramoreir/cpu-mem-sim
+    newName: quay.io/ramoreir/cpu-mem-sim
+    newTag: latest

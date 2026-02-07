@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>CPU/RAM Simulator</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 28px; }
+    .row { display:flex; gap: 18px; align-items: end; flex-wrap: wrap; }
+    label { display:block; font-size: 13px; opacity:.8; margin-bottom: 6px; }
+    input { padding: 8px; width: 220px; }
+    button { padding: 10px 14px; cursor: pointer; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-top: 14px; }
+    pre { background:#f6f6f6; padding: 12px; border-radius: 10px; overflow:auto; }
+    .pill { display:inline-block; padding:6px 10px; border:1px solid #ddd; border-radius: 999px; margin-right: 8px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media(max-width: 860px){ .grid{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <h1>CPU/RAM Simulator</h1>
+  <p>Start/Stop + streaming de status via WebSocket. O limite real é imposto pelos <b>limits</b> do Pod.</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Memória alvo (MiB)</label>
+        <input id="mem" type="number" value="1900" min="64" max="3000"/>
+      </div>
+      <div>
+        <label>CPU workers (processos)</label>
+        <input id="workers" type="number" value="2" min="1" max="32"/>
+      </div>
+      <div>
+        <label>Duração (segundos)</label>
+        <input id="seconds" type="number" value="120" min="5" max="3600"/>
+      </div>
+
+      <div>
+        <button onclick="start()">Start</button>
+        <button onclick="stop()">Stop</button>
+        <button onclick="toggleWs()">Toggle WS</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Resumo</h3>
+      <div id="summary"></div>
+    </div>
+    <div class="card">
+      <h3>Live status (JSON)</h3>
+      <pre id="out">Conectando...</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Console</h3>
+    <pre id="log"></pre>
+  </div>
+
+<script>
+let ws = null;
+let wsEnabled = true;
+
+function log(msg){
+  const el = document.getElementById('log');
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent;
+}
+
+function renderSummary(s){
+  const running = s.running ? "RUNNING" : "STOPPED";
+  const rem = (s.remaining_seconds === null || s.remaining_seconds === undefined) ? "-" : s.remaining_seconds + "s";
+  const note = s.note || "-";
+  const html = `
+    <span class="pill"><b>${running}</b></span>
+    <span class="pill">remaining: <b>${rem}</b></span>
+    <span class="pill">mem alvo: <b>${s.mem_mib} MiB</b></span>
+    <span class="pill">mem aloc: <b>${s.mem_blocks_mib} MiB</b></span>
+    <span class="pill">workers: <b>${s.cpu_workers}</b></span>
+    <span class="pill">ticks: <b>${s.ticks}</b></span>
+    <div style="margin-top:10px; opacity:.85">note: ${note}</div>
+  `;
+  document.getElementById('summary').innerHTML = html;
+}
+
+function connectWs(){
+  if(!wsEnabled) return;
+
+  const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => log("WS conectado");
+  ws.onclose = () => log("WS desconectado");
+  ws.onerror = () => log("WS erro");
+  ws.onmessage = (ev) => {
+    try{
+      const s = JSON.parse(ev.data);
+      document.getElementById('out').textContent = JSON.stringify(s, null, 2);
+      renderSummary(s);
+    }catch(e){
+      log("Falha parse WS: " + e);
+    }
+  };
+}
+
+function disconnectWs(){
+  if(ws){
+    ws.close();
+    ws = null;
+  }
+}
+
+async function start(){
+  const body = {
+    mem_mib: parseInt(document.getElementById('mem').value, 10),
+    cpu_workers: parseInt(document.getElementById('workers').value, 10),
+    seconds: parseInt(document.getElementById('seconds').value, 10)
+  };
+  const r = await fetch('/api/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  log("Start: " + await r.text());
+}
+
+async function stop(){
+  const r = await fetch('/api/stop', { method:'POST' });
+  log("Stop: " + await r.text());
+}
+
+function toggleWs(){
+  wsEnabled = !wsEnabled;
+  log("WS enabled = " + wsEnabled);
+  if(wsEnabled){
+    connectWs();
+  }else{
+    disconnectWs();
+  }
+}
+
+connectWs();
+</script>
+</body>
+</html>

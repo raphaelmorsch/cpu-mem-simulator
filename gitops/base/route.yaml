@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cpu-mem-sim
+spec:
+  to:
+    kind: Service
+    name: cpu-mem-sim
+  port:
+    targetPort: http
+  tls:
+    termination: edge
