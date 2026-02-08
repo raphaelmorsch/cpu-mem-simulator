@@ -37,19 +37,20 @@ def cpu_burn(stop_evt: mp.Event):
         x = (x * 3 + 1) % 10000019
 
 def allocate_memory(mem_mib: int):
-    """
-    Aloca em blocos de 1MiB e mantém referência global para não ser coletado.
-    """
     global _mem_blocks
     _mem_blocks = []
-    block = b"x" * (1024 * 1024)
 
-    for _ in range(mem_mib):
-        _mem_blocks.append(block)
+    chunk_mib = 64
+    remaining = mem_mib
 
-    # toca páginas
-    for i in range(0, len(_mem_blocks), 64):
-        _ = _mem_blocks[i][0]
+    while remaining > 0:
+        this_mib = min(chunk_mib, remaining)
+        b = bytearray(this_mib * 1024 * 1024)
+        b[0] = 1
+        b[-1] = 1
+        _mem_blocks.append(b)
+        remaining -= this_mib
+
 
 def _set_state_running(mem_mib: int, cpu_workers: int, seconds: int, procs: List[mp.Process]):
     now = time.time()
