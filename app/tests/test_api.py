@@ -123,12 +123,15 @@ class TestGuardrails:
     def test_seconds_clamped_to_min(self, client):
         client.post("/api/start", json={"mem_mib": 64, "cpu_workers": 1, "seconds": 1})
         data = client.get("/api/status").json()
-        assert data["remaining_seconds"] >= 4  # at least ~5s minus time elapsed
+        # Validate via ends_at - started_at (immune to race conditions)
+        duration = data["ends_at"] - data["started_at"]
+        assert duration >= 5  # clamped from 1 to min=5
 
     def test_seconds_clamped_to_max(self, client):
         client.post("/api/start", json={"mem_mib": 64, "cpu_workers": 1, "seconds": 99999})
         data = client.get("/api/status").json()
-        assert data["remaining_seconds"] <= 3600
+        duration = data["ends_at"] - data["started_at"]
+        assert duration <= 3600  # clamped to max=3600
 
 
 # ── WebSocket ──────────────────────────────────────────────────────────────

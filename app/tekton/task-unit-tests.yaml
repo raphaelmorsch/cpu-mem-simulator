@@ -1,0 +1,24 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: unit-tests-python
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: pytest
+      image: registry.access.redhat.com/ubi9/python-311:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        if [ -f app/requirements.txt ]; then pip install -r app/requirements.txt; fi
+        # se você tiver requirements-dev.txt, melhor ainda
+        if [ -f app/requirements-dev.txt ]; then pip install -r app/requirements-dev.txt; fi
+        # fallback: se não tiver testes ainda, falha com mensagem clara
+        if [ ! -d app/tests ]; then
+          echo "Diretório ./tests não encontrado. Crie testes unitários (pytest) para habilitar esse gate."
+          exit 1
+        fi
+        pip install pytest
+        pytest -q
