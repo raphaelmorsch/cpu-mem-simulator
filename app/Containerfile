@@ -1,13 +1,14 @@
 FROM registry.access.redhat.com/ubi9/python-311:latest
 
-# Fix CVE-2025-14087 (glib2 buffer underflow - RHSA-2025:11140)
+# Fix CVE-2025-14087 (glib2 buffer underflow)
 USER 0
-RUN dnf upgrade -y --security --nobest && dnf clean all
+RUN dnf upgrade -y glib2 && dnf clean all
 USER 1001
 
 WORKDIR /opt/app
 COPY app/requirements.txt /opt/app/
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade setuptools>=78.1.1 && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY app/ /opt/app/
 
