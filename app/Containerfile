@@ -4,13 +4,15 @@ FROM registry.access.redhat.com/ubi9/python-311:latest
 USER 0
 RUN dnf upgrade -y glib2 && \
     rpm -e --nodeps python3-setuptools python3-setuptools-wheel 2>/dev/null || true && \
+    find / -path "*/setuptools-*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find / -path "*/setuptools*.whl" -exec rm -f {} + 2>/dev/null || true && \
+    pip install --no-cache-dir "setuptools>=78.1.1" && \
     dnf clean all
 USER 1001
 
 WORKDIR /opt/app
 COPY app/requirements.txt /opt/app/
-RUN pip install --no-cache-dir "setuptools>=78.1.1" && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ /opt/app/
 
