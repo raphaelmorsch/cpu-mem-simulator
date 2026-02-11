@@ -1,6 +1,7 @@
 # ── Stage 1: Builder ──────────────────────────────────────────────────────
 FROM registry.access.redhat.com/ubi9/python-311:latest AS builder
 
+USER 0
 WORKDIR /opt/app
 COPY app/requirements.txt /opt/app/
 
