@@ -1,11 +1,11 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: cpu-mem-sim
+  name: resource-simulator
 spec:
   to:
     kind: Service
-    name: cpu-mem-sim
+    name: resource-simulator
   port:
     targetPort: http
   tls:
