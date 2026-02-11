@@ -1,23 +1,33 @@
-FROM registry.access.redhat.com/ubi9/python-311:latest
-
-# Fix CVE-2025-14087 (glib2) + CVE-2024-6345/CVE-2025-47273 (setuptools)
-USER 0
-RUN dnf upgrade -y glib2 && \
-    rpm -e --nodeps python3-setuptools python3-setuptools-wheel 2>/dev/null || true && \
-    find / -path "*/setuptools-*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find / -path "*/setuptools*.whl" -exec rm -f {} + 2>/dev/null || true && \
-    pip install --no-cache-dir "setuptools>=78.1.1" && \
-    dnf clean all
-USER 1001
+# ── Stage 1: Builder ──────────────────────────────────────────────────────
+FROM registry.access.redhat.com/ubi9/python-311:latest AS builder
 
 WORKDIR /opt/app
 COPY app/requirements.txt /opt/app/
-RUN pip install --no-cache-dir -r requirements.txt
 
+# Install deps into a clean virtual environment (no old setuptools)
+RUN python3.11 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+# Fix CVE-2025-14087 (glib2)
+RUN microdnf install -y python3.11 glib2 && \
+    microdnf upgrade -y glib2 && \
+    microdnf clean all
+
+# Copy the venv from builder (contains only setuptools 78.1.1+, no 65.5.1)
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application code
+WORKDIR /opt/app
 COPY app/ /opt/app/
 
-ENV PORT=8080
+ENV PATH="/opt/venv/bin:$PATH" \
+    PORT=8080
+
 EXPOSE 8080
 
-# UBI python já roda como usuário não-root
-CMD ["python", "main.py"]
+USER 1001
+CMD ["python3.11", "main.py"]
